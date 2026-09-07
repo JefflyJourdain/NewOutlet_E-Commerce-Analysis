@@ -1,7 +1,13 @@
-DROP VIEW IF EXISTS DimGeography
+update ecommerce_raw
+set country = case 
+            WHEN country IN ('US', 'United States', 'USA') 
+            THEN 'United States'
+            ELSE country
+END
+DROP VIEW IF EXISTS DimGeography 
 GO
-CREATE VIEW DimGeography AS 
 
+CREATE VIEW DimGeography AS 
 WITH normalized_data AS (
     SELECT 
         region,
@@ -11,18 +17,24 @@ WITH normalized_data AS (
         END AS country_normalized
     FROM  ecommerce_raw
     WHERE region IS NOT NULL
-)
+),
 
 
-    SELECT 
-        ROW_NUMBER() OVER(ORDER BY country_normalized) AS geography_key,
-        region,
-        country_normalized
+country as(  SELECT 
+        ROW_NUMBER() OVER( ORDER BY country_normalized ) AS country_key,
+        
+        country_normalized as Country
 
     FROM  normalized_data
-    GROUP BY 
-        region,
-        country_normalized;
+    GROUP BY country_normalized
+)
+
+select  ROW_NUMBER() OVER( ORDER BY country_normalized) AS region_key,
+    nd.region, c.country,country_key
+from country c
+left join normalized_data nd on nd.country_normalized = c.Country
+group by  nd.region, c.country,country_key,country_normalized;
+
 GO
 
 
@@ -39,9 +51,10 @@ GO
 CREATE VIEW FactSales AS
 
    
+     
     WITH dates_cleaned AS (
      SELECT 
-        order_id,
+        product_id, order_id, order_date,ship_date as ship,delivery_date as delivery,
         COALESCE(
             TRY_CAST(TRY_CONVERT(DATETIME, order_date, 101) AS DATE),
             TRY_CAST(TRY_CONVERT(DATETIME, order_date, 103) AS DATE),
@@ -68,7 +81,7 @@ CREATE VIEW FactSales AS
 
 dates_normalized AS (
     SELECT 
-        order_id,
+        product_id, order_id, order_date,ship,delivery,
         CASE 
             WHEN YEAR(parsed_order_date) > YEAR(parsed_ship_date) 
             
@@ -95,9 +108,9 @@ dates_normalized AS (
     FROM dates_cleaned
 )
    
-        SELECT DISTINCT  product_id,ecommerce_raw.order_id,
-           dates_normalized.final_order_date AS order_date,
-            dates_normalized.final_ship_date as ship_date,
+      SELECT DISTINCT  r.product_id,r.order_id,
+           nor.final_order_date AS order_date,
+            nor.final_ship_date as ship_date,
             COALESCE(
             TRY_CAST(TRY_CONVERT(DATETIME,delivery_date,101) AS DATE),
                 TRY_CAST(TRY_CONVERT(DATETIME,delivery_date,103) AS DATE),
@@ -105,45 +118,56 @@ dates_normalized AS (
                 TRY_CAST(TRY_CONVERT(DATETIME,delivery_date,120) AS DATE)
             )AS delivery_date,
             customer_id,
+            dg.region_key,
             CASE 
                 WHEN sales_channel in('shop','Shopify' ) THEN 'Shopify'
                 when sales_channel in ('AMZ','Amazon' )     THEN 'Amazon'
                 ELSE sales_channel
                 END AS sales_channel,
-            geography_key,
-            quantity,
-            unit_cogs,
+            
+            sum(quantity) as quantity ,
+            sum(unit_cogs) as unit_cogs,
             CASE 
                 WHEN discount_pct > 1 THEN discount_pct / 100
                 ELSE discount_pct
                 END AS discount_pct,
-            gross_revenue,
-            net_revenue,
-            cogs_total,
-            gross_profit,
+            sum(gross_revenue) as gross_revenue ,
+            sum(net_revenue) as net_revenue,
+            sum(cogs_total) as cogs_total ,
+            sum(gross_profit) as gross_profit,
             CASE 
                 WHEN  gross_margin_pct > 1 THEN gross_margin_pct / 100
                 ELSE gross_margin_pct
                 END AS gross_margin_pct,
-            shipping_cost,
+            sum(shipping_cost) as  shipping_cost ,
             
             CASE 
                 WHEN lower(payment_method) IN('visa','mastercard','cc') THEN 'Credit Card'
                     ELSE payment_method
                     END AS payment_method,
-            lower(payment_status) as payment_status ,
-            fulfillment_status,
+            lower(payment_status) as payment_status,
+            Case when nor.final_ship_date is null then 'Unfulfilled'
+                when r.delivery_date is null then 'Unfulfilled'
+                else 'Fulfilled'
+                end as fulfillment_status,
             order_status,
             notes
-            
-        
-
-        FROM ecommerce_raw
-        LEFT JOIN DimGeography on ecommerce_raw.region = DimGeography.region
-        LEFT JOIN dates_normalized on ecommerce_raw.order_id = dates_normalized.order_id
-
-
-        ;
+        FROM ecommerce_raw r
+        --LEFT JOIN DimGeography on ecommerce_raw.country = DimGeography.Country
+        LEFT JOIN dates_normalized nor on r.product_id = nor.product_id
+        AND  r.order_id = nor.order_id 
+        AND r.order_date = nor.order_date 
+        AND r.ship_date = nor.ship
+        AND r.delivery_date = nor.delivery
+        LEFT JOIN DimGeography dg on r.region = dg.region
+        GROUP BY r.product_id,r.order_id,
+           nor.final_order_date,
+            nor.final_ship_date , r.delivery_date,r.customer_id,dg.region_key,
+            r.sales_channel, fulfillment_status,
+            order_status,gross_margin_pct,
+            notes,r.discount_pct,
+            r.payment_method,
+            r.payment_status
 GO
 
 
@@ -239,18 +263,18 @@ CREATE VIEW FactReturns AS
             WHEN lower(return_flag) IN ('y','true','yes') THEN 1
             WHEN lower(return_flag) IN ('n','false','no') THEN 0
             ELSE return_flag
-            END as return_flag,product_id,geography_key
+            END as return_flag,product_id,region_key
             
     from ecommerce_raw
-    LEFT JOIN DimGeography on ecommerce_raw.region = DimGeography.region
+    LEFT JOIN DimGeography on ecommerce_raw.country = DimGeography.Country
 
 )
-    select order_id,return_date,return_reason,sum(refund_amount) AS refund_amount,product_id,geography_key
+    select order_id,return_date,return_reason,sum(refund_amount) AS refund_amount,product_id,region_key
 
 
         FROM returns_processed
         WHERE return_flag !=0
-        GROUP BY order_id,return_date,return_reason,product_id,geography_key;
+        GROUP BY order_id,return_date,return_reason,product_id,region_key;
 GO
         
 
