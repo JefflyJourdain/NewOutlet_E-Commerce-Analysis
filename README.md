@@ -94,18 +94,3 @@ Single-page executive view combining top-line KPIs, profit and order trends, cat
 **Source Data:** Based on a synthetic dataset made by myself can be found on  kaggle(https://www.kaggle.com/datasets/kaisersafdf/messy-e-ccomerce-dataset) 
 
 
----
-
-## 📁 Project Structure
-
-```text
-├── README.md
-├── analysis.md              # Deep-dive queries, tier definitions, and calculations
-├── sql/
-│   └── [confirm file names — tier, quadrant, cohort logic]
-├── notebooks/
-│   └── [confirm, if a Jupyter notebook was used]
-├── assets/
-│   └── [dashboard screenshots, if applicable]
-└── [dashboard file, if applicable]
-```
