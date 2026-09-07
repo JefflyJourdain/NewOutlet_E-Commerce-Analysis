@@ -1,171 +1,96 @@
-# 🛒 E-Commerce Operations Analytics — ETL Pipeline & Dashboard
+# 🛒 NewOutlet - Ecommerce Profitability Analytics
 
-> **Status:** ✅ Completed — Live on Power BI Service with daily scheduled refresh
+> **Status:** 🚧 completed
 
-An end-to-end data analytics project built on a synthetic e-commerce operations dataset. The project covers a full modern data stack: a **Python ETL pipeline** extracting data via the Kaggle API and loading directly into **Azure SQL**, advanced **T-SQL** data cleaning and modelling, and a **Power BI** executive dashboard with live cloud deployment.
+## Background & Business Context
+This project moves beyond top-line revenue reporting to diagnose the underlying drivers of profitability for NewOutlet an ecommerce retailer answering questions like whether promotional discounting is actually paying for itself, which products in the catalog are worth keeping, why customers aren't buying more often within a given year. Each business question is treated as a standalone diagnostic, using tier, quadrant, and cohort-based frameworks rather than single-number KPIs.
 
 ---
 
 ## 📋 Table of Contents
-
 - [Project Overview](#project-overview)
-- [Tech Stack](#tech-stack)
-- [Dataset](#dataset)
-- [ETL Pipeline](#etl-pipeline)
-- [SQL — Data Cleaning & Modelling](#sql--data-cleaning--modelling)
-- [Power BI Dashboard](#power-bi-dashboard)
-- [Key Findings](#key-findings)
+- [Key Findings & Strategic Insights](#key-findings--strategic-insights)
+- [Dashboard Overview](#dashboard-overview)
+- [Strategic Recommendations](#strategic-recommendations)
+- [Tech Stack & Dataset](#tech-stack--dataset)
 - [Project Structure](#project-structure)
 
 ---
 
 ## Project Overview
 
-This project analyzes the operational and financial performance of a multi-channel e-commerce business, covering revenue, margin, return rates, and channel behaviour across product categories and customer segments. The goal was to build a production-grade analytics pipeline, from raw data ingestion to a live, refreshing dashboard, rather than a static one-time analysis.
+This project answers four business questions about an ecommerce retailer's pricing strategy, product portfolio, customer retention, and fulfillment operations, using tier, quadrant, and cohort-based frameworks instead of surface-level KPIs.
 
+### Analytical Frameworks Applied
 
-**Business Questions addressed:**
-- Which product categories and subcategories drive the most revenue vs. the most margin?
-- How do B2B, Wholesale, and B2C channels compare in AOV and profitability?
-- Where is margin being lost — pricing, discounting, or product mix?
-- Which subcategories have anomalous return rates, and where is revenue concentrated?
-<img width="551" height="342" alt="{DAE7E42C-1959-41BB-AF7D-0A4FCF2BACE8}" src="https://github.com/user-attachments/assets/be83e481-5de5-451b-a76b-38a28a7c7f79" />
+* **Discount Tier & Margin Waterfall Analysis:** Isolating whether promotional discounting drives incremental volume or simply erodes margin on sales that would have happened anyway.
+* **Product Portfolio Quadrant Analysis:** Segmenting the catalog by volume and margin to separate products worth scaling from products worth cutting.
+* **Cohort Repeat-Purchase Analysis:** Distinguishing lifetime retention from same-year purchase frequency to isolate whether a retention gap is behavioral or structural (natural replacement cycle).
+* **Fulfillment Funnel Analysis (planned):** Tracking order-to-ship-to-delivery timing by product and region to locate where delays concentrate.
 
 ---
 
-## Tech Stack
+## 🔍 Key Findings & Strategic Insights
+
+> _Detailed SQL queries, tier definitions, and calculations behind these findings are documented in the `analysis.md` file._
+
+### 1. Financial Health & True Profitability
+**Business question:** Does discounting actually pay for itself?
+
+Discounting is not paying for itself. The moment any discount is introduced, order volume drops 68% (from 842k orders at 0% discount to 268k at 1-10%), then stays flat in the 64k-69k range through the 11-40% tiers, well below what would be needed to offset the price cut. Because volume never recovers, margin bleeds out steadily: gross margin falls from 58.5% at 0% to a trough of 30.7% in the 31-40% tier, and absolute profit collapses from $72.8M to just $2.0M over that same range. The 0% tier alone (842k orders, $72.8M profit) is the real engine of the business. A margin spike appears in the 41%+ tier, but it looks like a product-mix artifact rather than a pricing win, it's unlikely we're comparing like-for-like products at that depth of discount, so that tier needs a product-level audit before drawing conclusions from it.
+
+### 2. Product Performance & Trends
+**Business question:** Which products are driving volume vs. driving profit?
+
+A quadrant analysis of the 83-product catalog shows a portfolio that's more bloated than it looks at first glance. 23 products fall into the "Dead Weight" (low volume, low margin), the single largest group, generating warehousing, supply chain, and marketing cost without a clear return; these are candidates for discontinuation or liquidation. Eighteen "Hidden Gems" (low volume, high margin) prove customers will pay a premium, so their low volume is more likely a visibility problem than a demand problem, making them strong candidates for bundling or cross-selling alongside the 24 "Hero" products (high volume, high margin) that already form a healthy, profitable core. The remaining 18 "Traffic Drivers" (high volume, low margin) are the most actionable group: given the discounting findings above, these are likely the same products sitting in the 11-30% discount tiers, and tightening their promotional spend is a plausible path to migrating them into the Hero quadrant.
+
+### 3. Customer Behavior & Value
+**Business question:** What is our customer repeat purchase rate?
+
+The headline number depends entirely on the time window. Lifetime repeat purchase rate sits at 63.6% (customers who bought in 2022 and returned by 2024), showing real long-term product loyalty. But same-year repeat rate, the share of customers buying more than once within a single calendar year, has been flat at 25.9-26.9% across 2022, 2023, and 2024. That plateau points to two things: current post-purchase nurture campaigns (generic "buy again" emails, 30-day retargeting) have hit a ceiling, and the product category likely has a replacement cycle longer than 12 months, so customers genuinely don't need to reorder that fast. The fix isn't more frequency pressure, it's shifting post-purchase marketing toward lifecycle triggers: cross-selling Hidden Gems, seasonal refreshes, tiered loyalty, rather than fighting the natural usage cycle.
+
+---
+
+## Dashboard Overview
+
+_Global filters for Year, Region, and Sales Channel are applied across the report._
+
+### E-commerce Company Performance Report
+Single-page executive view combining top-line KPIs, profit and order trends, category-level revenue/profit, and returns tracking.
+
+<img width="562" height="346" alt="{459AB609-9220-4B77-8597-6EECAD9A4622}" src="https://github.com/user-attachments/assets/21f3c8d9-7062-4f9c-8a73-f8637689fca5" />
+
+
+**Key Insights:**
+* **Orders are trending down sharply** across the period shown, from a peak of 1,199 down to 401, even as profit is up 43.6% year-over-year and COGS up 39.7%, a gap worth digging into (fewer but larger orders vs. a seasonality effect the trend line doesn't capture).
+* **Return rate is the one KPI moving the wrong way:** 13.18%, up 12.4% month-over-month and 19.1% year-over-year.
+* **Office leads the category mix** on both revenue and profit, ahead of Storage, Kitchen, and Bedroom, consistent with Office Chairs Model C2 showing up among the top 3 products.
+* **Margin has held roughly flat** (57.46%, -0.5% MoM, +1.8% YoY) despite the swings in orders, revenue, and COGS, so overall profitability hasn't been dragged down yet.
+
+
+---
+
+## 🎯 Strategic Recommendations
+
+| Priority | Action | Owner | Expected Impact | Metric to Track |
+| :--- | :--- | :--- | :--- | :--- |
+| **P0** | Cut broad discounting in the 11-30% range, where volume gains never offset margin loss. | Pricing / Revenue | Recovered margin without a corresponding volume loss. | Gross margin % and profit by discount tier |
+| **P0** | Audit product mix inside the 41%+ discount tier before treating its margin spike as a signal. | Pricing / Merchandising | Accurate read on whether deep discounts ever work. | Product/category composition of the 41%+ tier |
+| **P1** | Discontinue or liquidate the 23 "Dead Weight" SKUs. | Merchandising / Supply Chain | Lower warehousing and marketing spend on non-performing SKUs. | SKU count & holding cost in Dead Weight quadrant |
+| **P1** | Bundle or cross-sell the 18 "Hidden Gems" alongside "Hero" products. | Merchandising / Marketing | Volume growth on high-margin products without discounting. | Hidden Gem order volume, bundle attach rate |
+| **P1** | Tighten discounts on "Traffic Driver" products to push them toward the Hero quadrant. | Pricing / Merchandising | Higher margin on already-high-volume products. | Traffic Driver margin %, quadrant migration |
+| **P2** | Replace generic "buy again" prompts with lifecycle-based triggers (seasonal, cross-sell, loyalty tiers). | Marketing / CX | Lift in same-year repeat rate above the 26% plateau. | Same-year repeat purchase rate |
+
+---
+
+## Tech Stack & Dataset
 
 | Tool | Purpose |
 |------|---------|
-| **Python** | ETL pipeline — Kaggle API extraction, Azure SQL load |
-| **Azure SQL** | Cloud data warehouse (dev + production databases) |
-| **Azure Blob Storage** | Raw data landing zone |
-| **T-SQL** | Advanced data cleaning, view creation, star schema modelling |
-| **Power BI Desktop** | Dashboard development with parameter-driven environment switching |
-| **Power BI Service** | Live deployment with daily scheduled refresh |
+| **SQL Server (T-SQL)**   | Data cleaning, schema design, Data analysis & insights |
+| **Python (pandas)**   | Extract and load data using advanced scripts |
+| **Power BI** | Visualitation and dashboard creation |
 
----
+**Source Data:** Based on a synthetic dataset made by myself can be found on  kaggle(https://www.kaggle.com/datasets/kaisersafdf/messy-e-ccomerce-dataset) 
 
-## Dataset
 
-The source is a synthetic e-commerce operations dataset with **~100,000 rows** of transactional data covering orders, products, customers, returns, inventory, and financials across multiple sales channels and geographies.
-
-| Table | Description |
-|-------|-------------|
-| `ecommerce_raw` | Raw ingested table — single source of truth |
-| `FactSales` | Cleaned fact table view — orders, revenue, margin, discounts |
-| `DimProduct` | Product dimension — category, subcategory (cleaned) |
-| `DimCustomer` | Customer dimension — segment, region |
-| `DimGeography` | Geography dimension — region, country |
-
----
-
-## ETL Pipeline
-
-The pipeline was built in Python and runs end-to-end from data extraction to cloud load with no manual steps.
-
-### Architecture
-
-```
-Kaggle API → Python (pandas) → Azure SQL (raw table) → SQL views → Power BI
-```
-
-### Key Implementation Details
-
-- **Extraction** via `kagglehub` using `KaggleDatasetAdapter.PANDAS` — loads directly into a DataFrame without intermediate file storage
-- **Load** via `SQLAlchemy` + `pyodbc` with ODBC Driver 18 for SQL Server, using batch inserts (`chunksize=500`, `method="multi"`) for performance
-- **Dual database setup** — separate development and production Azure SQL databases on the same server, with Power BI switching between them via a parameter
-- **Credentials** managed via environment variables — no hardcoded secrets in the codebase
-- **Scheduled refresh** configured in Power BI Service — dashboard updates daily from production database
-
----
-
-## SQL — Data Cleaning & Modelling
-
-The raw table required significant cleaning before it could support reliable analysis. All transformations were applied in T-SQL on top of `ecommerce_raw`.
-
-### Cleaning Operations
-
-- **Mixed date format parsing** — `order_date`, `ship_date`, and `delivery_date` stored in inconsistent formats (MM/DD/YYYY, DD/MM/YYYY, ISO, long-form text). Resolved using `TRY_CONVERT` with multiple format codes inside `COALESCE`, returning the first successful parse
-- **Percentage column normalisation** — `gross_margin_pct` and `discount_pct` stored as mixed strings (`"73%"`, `"0.73"`, `"73"`). Cleaned via `REPLACE` + `CAST` to `DECIMAL`, then normalised with a `CASE` expression dividing values `> 1` by 100
-- **Subcategory imputation** — null subcategory values filled using keyword matching on `product_name` via `CASE WHEN LOWER(product_name) LIKE '%cookware%'` pattern, wrapped in `COALESCE` to preserve existing values
-- **Return flag standardisation** — mixed boolean representations (`Y`, `Yes`, `true`, `1`) unified to a consistent binary flag
-- **Payment method consolidation** — card brand variants (`Visa`, `Mastercard`, `CC`) collapsed into a single `Credit Card` category
-- **Column type enforcement** — `ALTER TABLE` used to enforce `DECIMAL(10,2)` on numeric columns after string cleaning
-
-### SQL Techniques Used
-
-- **CTEs** — multi-step transformations broken into readable named stages
-- **Window functions** — `ROW_NUMBER()` for deduplication, ranking across partitions
-- **Subqueries** — inline transformations nested within larger SELECT statements
-- **`TRY_CONVERT` / `TRY_CAST`** — safe casting to prevent runtime errors on dirty data
-- **`COALESCE`** — fallback chains for null handling across multiple expressions
-- **`CASE` expressions** — conditional logic for categorisation, normalisation, and flag standardisation
-
-### Views
-
-All cleaned logic is encapsulated in views, keeping `ecommerce_raw` intact as a replayable source:
-
-| View | Purpose |
-|------|---------|
-| `FactSales` | Core transactional fact table with cleaned dates, margins, and flags |
-| `DimProduct` | Product attributes with imputed subcategories |
-| `DimCustomer` | Customer segment and geography |
-| `DimGeography` | Region and country reference |
-
----
-
-## Power BI Dashboard
-
-A single-page executive dashboard deployed live on Power BI Service.
-
-**Features:**
-- **Environment parameter** — switches data source between development and production Azure SQL databases without modifying the report
-- **Daily scheduled refresh** on Power BI Service — always reflects latest data
-- Cross-filtering across category, channel, region, and time dimensions
-
-**KPIs covered:**
-- Revenue, gross profit, and gross margin % by category and subcategory
-- AOV and order volume by sales channel (B2B, Wholesale, B2C, Amazon, Shopify)
-- Return rate by subcategory
-- Discount rate distribution across the catalogue
-
----
-
-## Key Findings
-
-### Category & Subcategory Margin
-
-- **Kitchen is the highest-margin category** despite not leading revenue. Cookware (60%), Utensils (55%), and Cutlery (54%) form the tightest, most consistent margin band in the entire dataset — no subcategory is underperforming
-- **Office leads revenue by a wide margin but sits at 53% category margin** — driven down by Office Accessories at 47%, the worst-performing subcategory in the dataset. Office Desks (55%) and Chairs (58%) are healthy, but Accessories is quietly eroding category profit
-- **Outdoor/Patio revenue is $6.5M with 58–59% margin, while Gardening sits at $3.1M with the same margin** — identical profitability profile but less than half the order volume. Either a niche product line or underexposed in the catalogue
-- **Bedroom Lighting drops to 48% margin** — nearly 10 percentage points below Bedding (57%) and Decor (57%) in the same category. Something structural is driving the gap — pricing, COGS, or heavy discounting
-- **Storage is heavily concentrated in Boxes ($7.2M)** — Baskets generates only $2.9M at similar margin (54%). If Boxes faces a supply or demand issue, the entire category feels it
-
-### Discounting & Returns
-
-- **Discounting is consistent across all categories** — margin variation is driven by product mix and COGS, not promotional pricing
-- **Storage Boxes has a 33% return rate** — meaningfully above the 26–28% clustering across all other subcategories. Warrants investigation into product quality, sizing expectations, or fulfilment issues
-
-### Channel Performance
-
-- **B2B AOV is 1% higher than Wholesale, and 76% higher than B2C** — as expected for a direct business channel vs. consumer
-- **Wholesale AOV is 83% higher than Amazon and 86% higher than Shopify** — the self-managed wholesale channel significantly outperforms marketplace channels in average order value, likely reflecting bulk purchasing behaviour
-<img width="551" height="342" alt="{DAE7E42C-1959-41BB-AF7D-0A4FCF2BACE8}" src="https://github.com/user-attachments/assets/e210fa30-46fe-470d-ab2e-1f3e67a442eb" />
-
----
-
-## Project Structure
-
-```
-├── Etl.py                  # Python ETL pipeline (extract → load to Azure SQL)
-├── sql/
-│   ├── cleaning.sql        # UPDATE and ALTER statements for raw data cleaning
-│   └── views.sql           # View definitions (FactSales, DimProduct, etc.)
-├── Analytics.pbix          # Power BI dashboard file
-└── README.md
-```
-
----
-
-*Synthetic dataset. Built with Python, Azure SQL, and Power BI.*
